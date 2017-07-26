@@ -1,1 +1,5 @@
+#library root
+node_modules
+
+#.idea spec
 .idea
