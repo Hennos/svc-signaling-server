@@ -7,27 +7,28 @@ const server = require('http').createServer();
 const MessageType = {
   DISCONNECT: 'disconnect',
 
-  SDP: 'sdp',
-  ICE_CANDIDATE: 'ice_candidate',
+  RTC: '@RTC/BASE',
 
   CLIENTS: 'clients',
+  CONNECT: 'connect',
   LEAVE: 'leave',
 };
 
 const io = require('socket.io')(server);
 io.set('origins', 'localhost:*');
-io.on('connection', handleSocket);
 
-server.listen(PORT);
+let clients = Object.create(null);
 
-let clients = {};
-
-function handleSocket(socket) {
+io.on('connection', (socket) => {
   console.log('connection created');
-
-  socket.emit(MessageType.CLIENTS, clients);
-
+  
   const clientId = crypto.randomBytes(32).toString('hex');
+
+  Object.keys(clients)
+  .forEach(key => clients[key].emit(MessageType.CONNECT, clientId));
+
+  socket.emit(MessageType.CLIENTS, Object.keys(clients));
+  
   clients[clientId] = socket;
 
   socket.on(MessageType.DISCONNECT, function () {
@@ -38,17 +39,18 @@ function handleSocket(socket) {
     });
   });
 
-  socket.on(MessageType.SDP, function ({userId, sdp}) {
-    clients[userId].emit(MessageType.SDP, {
-      userId: clientId,
-      sdp,
-    });
-  });
+  socket.on(MessageType.RTC, (message) => {
+    const remoteId = message.id;
 
-  socket.on(MessageType.ICE_CANDIDATE, function ({userId, candidate}) {
-    clients[userId].emit(MessageType.ICE_CANDIDATE, {
-      userId: clientId,
-      candidate,
-    });
-  });
-}
+    const remoteActive = remoteId in clients;
+    if (!remoteActive) {
+      console.log(clientId + ': try call inactive ' + remoteId);
+    }
+
+    clients[remoteId].emit(MessageType.RTC, Object.assign(message, {
+      id: clientId,
+    }));
+  }); 
+});
+
+server.listen(PORT);
