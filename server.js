@@ -8,10 +8,14 @@ const MessageType = {
   DISCONNECT: 'disconnect',
 
   RTC: '@RTC/BASE',
+  
+  CLIENTS: '@PEER/CLIENTS',  
+  PEER_DATA: '@PEER/DATA',
+  REQUEST_PEER: '@PEER/REQUEST',
+  REQUEST_PEER_ANSWER: '@PEER/REQUEST_ANSWER',
 
-  CLIENTS: 'clients',
-  CONNECT: 'connect',
-  LEAVE: 'leave',
+  SET_PEER: '@PEER/ADD',
+  LEAVE_PEER: '@PEER/LEAVE',
 };
 
 const io = require('socket.io')(server);
@@ -23,19 +27,29 @@ io.on('connection', (socket) => {
   console.log('connection created');
   
   const clientId = crypto.randomBytes(32).toString('hex');
-
-  Object.keys(clients)
-  .forEach(key => clients[key].emit(MessageType.CONNECT, clientId));
+  let clientData = null;
 
   socket.emit(MessageType.CLIENTS, Object.keys(clients));
+
+  Object.keys(clients)
+  .forEach((key) => clients[key].emit(MessageType.SET_PEER, clientId));
   
   clients[clientId] = socket;
 
+  socket.on(MessageType.PEER_DATA, (peer) => {
+    clientData = peer;
+  })
+
+  socket.on(MessageType.REQUEST_PEER, (clientId) => {
+    clients[clientId].emit(MessageType.REQUEST_PEER_ANSWER, clientData);
+  })
+  
   socket.on(MessageType.DISCONNECT, function () {
-    clients[clientId].close();
+    console.log('disconnect ' + clientId);
+    clients[clientId].disconnect(true);
     delete clients[clientId];
     Object.keys(clients).forEach((key) => {
-      clients[key].emit(MessageType.LEAVE, clientId);
+      clients[key].emit(MessageType.LEAVE_PEER, clientId);
     });
   });
 
