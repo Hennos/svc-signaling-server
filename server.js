@@ -23,35 +23,35 @@ const io = require('socket.io')(server);
 io.set('origins', 'localhost:*');
 
 let clients = Object.create(null);
-let clientData = Object.create(null);
+let clientsData = Object.create(null);
 
 io.on('connection', (socket) => {
   console.log('connection created');
   
   const clientId = crypto.randomBytes(32).toString('hex');
 
-  socket.emit(MessageType.CLIENTS, Object.keys(clients));
+  socket.emit(MessageType.CLIENTS,
+    Object.keys(clients)
+    .map(peerId => ({
+      id: peerId,
+      data: clientsData[peerId],  
+    }))
+  );
   
   clients[clientId] = socket;
 
   socket.on(MessageType.PEER_DATA, (peer) => {
     console.log('add peer data');
-    clientsData[clientData] = peer;
+    clientsData[clientId] = peer;
     Object.keys(clients)
     .filter(peerId => !Object.is(peerId, clientId))
     .forEach(peerId => { 
-      clients[peerId].emit(MessageType.SET_PEER, clientId);
+      clients[peerId].emit(MessageType.SET_PEER, {
+        id: clientId,
+        data: clientsData[clientId],
+      });
     });
   })
-
-  socket.on(MessageType.REQUEST_PEER, (peerId) => {
-    console.log(clientId + ' wants get data from ' + peerName);
-
-    clients[clientId].emit(
-      MessageType.REQUEST_PEER_ANSWER,
-      clients[peerId] ? clientData[peerId] : null,
-    );
-  });
   
   socket.on(MessageType.RTC, (message) => {
     const remoteId = message.id;
@@ -70,8 +70,9 @@ io.on('connection', (socket) => {
     console.log('disconnect ' + clientId);
     clients[clientId].disconnect(true);
 
+    // Лучше бы возвращал id, да на клиенте в качестве ключа к словарю с пирами использовался
     Object.keys(clients).forEach((key) => {
-      clients[key].emit(MessageType.LEAVE_PEER, clients[clientId].peerData.name);
+      clients[key].emit(MessageType.LEAVE_PEER, clientId);
     });
 
     delete clients[clientId];
