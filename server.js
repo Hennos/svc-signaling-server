@@ -1,4 +1,4 @@
-const PORT = 3001;
+const PORT = 3002;
 
 const crypto = require('crypto');
 
@@ -17,7 +17,7 @@ const MessageType = {
 };
 
 const io = require('socket.io')(server);
-io.set('origins', 'localhost:*');
+io.set('origins', '192.168.0.20:*');
 
 let clients = Object.create(null);
 let clientsData = Object.create(null);
@@ -51,23 +51,24 @@ io.on('connection', (socket) => {
   })
   
   socket.on(MessageType.RTC, (message) => {
+    console.log('Get RTC messsage from ' + message.id);
+
     const remoteId = message.id;
 
     const remoteActive = remoteId in clients;
     if (!remoteActive) {
-      console.log(clientId + ': try call inactive ' + remoteId);
+      throw new Error(clientId + ': try call inactive ' + remoteId);
     }
 
     clients[remoteId].emit(MessageType.RTC, Object.assign(message, {
       id: clientId,
     }));
-  }); 
+  });
   
   socket.on(MessageType.DISCONNECT, () => {
     console.log('disconnect ' + clientId);
     clients[clientId].disconnect(true);
 
-    // Лучше бы возвращал id, да на клиенте в качестве ключа к словарю с пирами использовался
     Object.keys(clients).forEach((key) => {
       clients[key].emit(MessageType.LEAVE_PEER, clientId);
     });
