@@ -8,8 +8,8 @@ const MessageType = {
   DISCONNECT: 'disconnect',
 
   RTC: '@RTC/BASE',
-  
-  CLIENTS: '@PEER/CLIENTS',  
+
+  CLIENTS: '@PEER/CLIENTS',
   PEER_DATA: '@PEER/DATA',
 
   SET_PEER: '@PEER/ADD',
@@ -17,7 +17,7 @@ const MessageType = {
 };
 
 const io = require('socket.io')(server);
-io.set('origins', '192.168.0.20:*');
+io.set('origins', 'localhost:*');
 
 let clients = Object.create(null);
 let clientsData = Object.create(null);
@@ -31,7 +31,7 @@ io.on('connection', (socket) => {
     Object.keys(clients)
     .map(peerId => ({
       id: peerId,
-      data: clientsData[peerId],  
+      data: clientsData[peerId],
     }))
   );
   
@@ -42,14 +42,14 @@ io.on('connection', (socket) => {
     clientsData[clientId] = peer;
     Object.keys(clients)
     .filter(peerId => !Object.is(peerId, clientId))
-    .forEach(peerId => { 
+    .forEach(peerId => {
       clients[peerId].emit(MessageType.SET_PEER, {
         id: clientId,
         data: clientsData[clientId],
       });
     });
   })
-  
+
   socket.on(MessageType.RTC, (message) => {
     console.log('Get RTC messsage from ' + message.id);
 
@@ -64,7 +64,7 @@ io.on('connection', (socket) => {
       id: clientId,
     }));
   });
-  
+
   socket.on(MessageType.DISCONNECT, () => {
     console.log('disconnect ' + clientId);
     clients[clientId].disconnect(true);
